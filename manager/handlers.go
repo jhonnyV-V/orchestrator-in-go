@@ -1,10 +1,11 @@
-package worker
+package manager
 
 import (
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -14,10 +15,11 @@ import (
 func (a *Api) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	decoder.DisallowUnknownFields()
+
 	taskEvent := task.TaskEvent{}
 	err := decoder.Decode(&taskEvent)
 	if err != nil {
-		msg := fmt.Sprintf("Error unmarshalling body: %v\n", err)
+		msg := fmt.Sprintf("Eror unmarshaling body %v\n", err)
 		log.Printf(msg)
 		w.WriteHeader(400)
 		e := ErrResponse{
@@ -28,8 +30,8 @@ func (a *Api) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.Worker.AddTask(taskEvent.Task)
-	log.Printf("added task %v\n", taskEvent.Task.ID)
+	a.Manager.AddTask(taskEvent)
+	log.Printf("Added task %v\n", taskEvent.Task.ID)
 	w.WriteHeader(201)
 	json.NewEncoder(w).Encode(taskEvent.Task)
 }
@@ -37,7 +39,7 @@ func (a *Api) StartTaskHandler(w http.ResponseWriter, r *http.Request) {
 func (a *Api) GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
-	json.NewEncoder(w).Encode(a.Worker.GetTasks())
+	json.NewEncoder(w).Encode(a.Manager.GetTasks())
 }
 
 func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
@@ -51,22 +53,24 @@ func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 	//TODO: handle bad uuid
 	tId, _ := uuid.Parse(taskID)
 
-	taskToStop, ok := a.Worker.Db[tId]
+	taskToStop, ok := a.Manager.TaskDb[tId]
 	if !ok {
 		log.Printf("No task with id %v found\n", tId)
 		w.WriteHeader(404)
 		return
 	}
 
+	taskEvent := task.TaskEvent{
+		ID:        uuid.New(),
+		State:     task.COMPLETED,
+		Timestamp: time.Now(),
+	}
+
 	taskCopy := *taskToStop
 	taskCopy.State = task.COMPLETED
-	a.Worker.AddTask(taskCopy)
+	taskEvent.Task = taskCopy
+
+	a.Manager.AddTask(taskEvent)
 	log.Printf("added task %v to stop container %v\n", taskCopy.ID, taskCopy.ContainerID)
 	w.WriteHeader(204)
-}
-
-func (a *Api) GetStatsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	json.NewEncoder(w).Encode(a.Worker.Stats)
 }

@@ -1,4 +1,4 @@
-package worker
+package manager
 
 import (
 	"fmt"
@@ -7,16 +7,16 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-type ErrResponse struct {
-	HTTPStatusCode int
-	Message        string
-}
-
 type Api struct {
 	Address string
 	Port    int
-	Worker  *Worker
+	Manager *Manager
 	Router  *chi.Mux
+}
+
+type ErrResponse struct {
+	HTTPStatusCode int
+	Message        string
 }
 
 func (a *Api) initRouter() {
@@ -27,9 +27,6 @@ func (a *Api) initRouter() {
 		r.Route("/{taskID}", func(r chi.Router) {
 			r.Delete("/", a.StopTaskHandler)
 		})
-	})
-	a.Router.Route("/stats", func(r chi.Router) {
-		r.Get("/", a.GetStatsHandler)
 	})
 }
 func (a *Api) Start() {

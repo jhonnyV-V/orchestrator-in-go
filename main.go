@@ -2,27 +2,36 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/golang-collections/collections/queue"
 	"github.com/google/uuid"
+	"github.com/jhonnyV-V/orch-in-go/manager"
 	"github.com/jhonnyV-V/orch-in-go/task"
 	"github.com/jhonnyV-V/orch-in-go/worker"
 )
 
 func main() {
-	host := os.Getenv("CUBE_HOST")
-	port, _ := strconv.Atoi(os.Getenv("CUBE_PORT"))
 
-	if host == "" {
-		host = "localhost"
+	whost := os.Getenv("CUBE_WORKER_HOST")
+	wport, _ := strconv.Atoi(os.Getenv("CUBE_WORKER_PORT"))
+
+	if whost == "" {
+		whost = "localhost"
+	}
+	if wport == 0 {
+		wport = 8089
 	}
 
-	if port == 0 {
-		port = 8089
+	mhost := os.Getenv("CUBE_MANAGER_HOST")
+	mport, _ := strconv.Atoi(os.Getenv("CUBE_MANAGER_PORT"))
+
+	if mhost == "" {
+		mhost = "localhost"
+	}
+	if mport == 0 {
+		mport = 8099
 	}
 
 	fmt.Println("Starting Cube worker")
@@ -31,24 +40,19 @@ func main() {
 		Queue: *queue.New(),
 		Db:    make(map[uuid.UUID]*task.Task),
 	}
-	api := worker.Api{Address: host, Port: port, Worker: &w}
+	wapi := worker.Api{Address: whost, Port: wport, Worker: &w}
 
-	go runTasks(&w)
-	api.Start()
-}
+	go w.RunTasks()
+	go w.CollectStats()
+	go wapi.Start()
 
-func runTasks(w *worker.Worker) {
-	for {
-		if w.Queue.Len() != 0 {
-			result := w.RunTask()
-			if result.Error != nil {
-				log.Printf("Error running task: %v\n", result.Error)
-			}
-		} else {
-			log.Printf("No tasks to process currently.\n")
-		}
-		log.Println("Sleeping for 10 seconds.")
-		time.Sleep(10 * time.Second)
-	}
+	fmt.Println("Starting Cube manager")
 
+	workers := []string{fmt.Sprintf("%s:%d", whost, wport)}
+	m := manager.New(workers)
+	mapi := manager.Api{Address: mhost, Port: mport, Manager: m}
+
+	go m.ProcessTasks()
+	go m.UpdateTasks()
+	mapi.Start()
 }
