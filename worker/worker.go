@@ -3,6 +3,7 @@ package worker
 import (
 	"fmt"
 	"log"
+	"sort"
 	"time"
 
 	"github.com/golang-collections/collections/queue"
@@ -15,6 +16,19 @@ type Worker struct {
 	Queue     queue.Queue
 	Db        map[uuid.UUID]*task.Task
 	TaskCount int
+}
+
+func (w *Worker) GetTasks() []*task.Task {
+	tasks := []*task.Task{}
+
+	for _, t := range w.Db {
+		tasks = append(tasks, t)
+	}
+
+	sort.Slice(tasks, func(i, j int) bool {
+		return tasks[i].ID.String() < tasks[j].ID.String()
+	})
+	return tasks
 }
 
 func (w *Worker) AddTask(t task.Task) {

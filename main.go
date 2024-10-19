@@ -2,6 +2,9 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/golang-collections/collections/queue"
@@ -11,36 +14,41 @@ import (
 )
 
 func main() {
+	host := os.Getenv("CUBE_HOST")
+	port, _ := strconv.Atoi(os.Getenv("CUBE_PORT"))
+
+	if host == "" {
+		host = "localhost"
+	}
+
+	if port == 0 {
+		port = 8089
+	}
+
+	fmt.Println("Starting Cube worker")
+
 	w := worker.Worker{
 		Queue: *queue.New(),
 		Db:    make(map[uuid.UUID]*task.Task),
 	}
+	api := worker.Api{Address: host, Port: port, Worker: &w}
 
-	t := task.Task{
-		ID:    uuid.New(),
-		Name:  "test-container-1",
-		State: task.SCHEDULED,
-		Image: "strm/helloworld-http",
+	go runTasks(&w)
+	api.Start()
+}
+
+func runTasks(w *worker.Worker) {
+	for {
+		if w.Queue.Len() != 0 {
+			result := w.RunTask()
+			if result.Error != nil {
+				log.Printf("Error running task: %v\n", result.Error)
+			}
+		} else {
+			log.Printf("No tasks to process currently.\n")
+		}
+		log.Println("Sleeping for 10 seconds.")
+		time.Sleep(10 * time.Second)
 	}
 
-	fmt.Println("starting task")
-	w.AddTask(t)
-	result := w.RunTask()
-	if result.Error != nil {
-		panic(result.Error)
-	}
-
-	t.ContainerID = result.ContainerId
-	fmt.Printf("task %v is running in container %v\n", t.ID, t.ContainerID)
-	fmt.Println("Sleeping")
-	time.Sleep(time.Second * 10)
-
-	fmt.Printf("stopping task %v\n", t.ID)
-	t.State = task.COMPLETED
-	w.AddTask(t)
-	result = w.RunTask()
-
-	if result.Error != nil {
-		panic(result.Error)
-	}
 }
