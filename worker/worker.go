@@ -25,8 +25,38 @@ func (w *Worker) CollectStats() {
 	fmt.Println("CollectStats")
 }
 
-func (w *Worker) RunTask() {
+func (w *Worker) RunTask() task.DockerResult {
 	fmt.Println("RunTask")
+	t := w.Queue.Dequeue()
+	if t == nil {
+		log.Println("No task in queue")
+		return task.DockerResult{
+			Error: nil,
+		}
+	}
+
+	taskQueued := t.(task.Task)
+	taskPersisted := w.Db[taskQueued.ID]
+	if taskPersisted == nil {
+		taskPersisted = &taskQueued
+		w.Db[taskQueued.ID] = taskPersisted
+	}
+
+	var result task.DockerResult
+	if task.ValidStateTransition(taskPersisted.State, taskQueued.State) {
+		switch taskQueued.State {
+		case task.SCHEDULED:
+			result = w.StartTask(taskQueued)
+		case task.COMPLETED:
+			result = w.StopTask(taskQueued)
+		default:
+			result.Error = fmt.Errorf("We should not get here")
+		}
+	} else {
+		result.Error = fmt.Errorf("Invalid transition from %v to %v", taskPersisted.State, taskQueued.State)
+	}
+
+	return result
 }
 
 func (w *Worker) StartTask(t task.Task) task.DockerResult {

@@ -34,6 +34,19 @@ var stateTransitionMap = map[State][]State{
 	FAILED:    []State{},
 }
 
+func Contains(states []State, state State) bool {
+	for _, s := range states {
+		if state == s {
+			return true
+		}
+	}
+	return false
+}
+
+func ValidStateTransition(src, dst State) bool {
+	return Contains(stateTransitionMap[src], dst)
+}
+
 type Task struct {
 	ID            uuid.UUID
 	ContainerID   string
