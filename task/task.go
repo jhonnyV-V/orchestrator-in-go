@@ -8,6 +8,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/client"
@@ -58,9 +59,12 @@ type Task struct {
 	Cpu           float64
 	ExposedPorts  nat.PortSet
 	PortBindings  map[string]string
+	HostPorts     nat.PortMap
 	RestartPolicy string
 	StartTime     time.Time
 	FinishTime    time.Time
+	HealthCheck   string
+	RestartCount  int
 }
 
 type TaskEvent struct {
@@ -95,6 +99,11 @@ type DockerResult struct {
 	Action      string
 	ContainerId string
 	Result      string
+}
+
+type DockerInspectResult struct {
+	Error     error
+	Container *types.ContainerJSON
 }
 
 func NewConfig(t *Task) *Config {
@@ -201,4 +210,15 @@ func (d *Docker) Stop(id string) DockerResult {
 		Action:      "stop",
 		Result:      "success",
 	}
+}
+
+func (d *Docker) Inspect(containerID string) DockerInspectResult {
+	dc, _ := client.NewClientWithOpts(client.FromEnv)
+	ctx := context.Background()
+	resp, err := dc.ContainerInspect(ctx, containerID)
+	if err != nil {
+		log.Printf("Failed to inspect container %v\n", containerID)
+		return DockerInspectResult{Error: err}
+	}
+	return DockerInspectResult{Container: &resp}
 }
