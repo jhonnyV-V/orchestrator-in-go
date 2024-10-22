@@ -62,7 +62,7 @@ func (r *RoundRobin) Pick(scores map[string]float64, candidates []*node.Node) *n
 }
 
 func checkDisk(t task.Task, diskAvailable int64) bool {
-	return t.Disk < diskAvailable
+	return t.Disk <= diskAvailable
 }
 
 type Epvm struct {
@@ -99,7 +99,7 @@ func (e *Epvm) Score(t task.Task, nodes []*node.Node) map[string]float64 {
 	return scores
 }
 func (e *Epvm) Pick(scores map[string]float64, candidates []*node.Node) *node.Node {
-	minCost := 90_000_000.0
+	minCost := 9000_000_000.0
 	var bestNode *node.Node
 	for _, node := range candidates {
 		if scores[node.Name] < minCost {

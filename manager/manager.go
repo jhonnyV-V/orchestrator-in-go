@@ -236,6 +236,11 @@ func (m *Manager) checkHealthTask(t task.Task) error {
 	log.Printf("calling health check for task %v: %s\n", t.ID, t.HealthCheck)
 	w := m.TaskWorkerMap[t.ID]
 	hostPort := getHostPort(t.HostPorts)
+	if hostPort == nil {
+		err := fmt.Errorf("nil hostport")
+		log.Printf("%s\n", err.Error())
+		return err
+	}
 	worker := strings.Split(w, ":")
 	url := fmt.Sprintf("http://%s:%s%s", worker[0], *hostPort, t.HealthCheck)
 	log.Printf("calling health check for task %v: %s\n", t.ID, url)

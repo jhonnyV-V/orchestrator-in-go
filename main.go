@@ -55,14 +55,17 @@ func main() {
 
 	go w1.RunTasks()
 	go w1.UpdateTasks()
+	go w1.CollectStats()
 	go wapi1.Start()
 
 	go w2.RunTasks()
 	go w2.UpdateTasks()
+	go w2.CollectStats()
 	go wapi2.Start()
 
 	go w3.RunTasks()
 	go w3.UpdateTasks()
+	go w3.CollectStats()
 	go wapi3.Start()
 
 	fmt.Println("Starting Cube manager")
