@@ -15,14 +15,15 @@ import (
 	"github.com/google/uuid"
 	"github.com/jhonnyV-V/orch-in-go/node"
 	"github.com/jhonnyV-V/orch-in-go/scheduler"
+	"github.com/jhonnyV-V/orch-in-go/storage"
 	"github.com/jhonnyV-V/orch-in-go/task"
 	"github.com/jhonnyV-V/orch-in-go/worker"
 )
 
 type Manager struct {
 	Pending       queue.Queue
-	TaskDb        map[uuid.UUID]*task.Task
-	EventDb       map[uuid.UUID]*task.TaskEvent
+	TaskDb        storage.Storage
+	EventDb       storage.Storage
 	Workers       []string
 	WorkerTaskMap map[string][]uuid.UUID
 	TaskWorkerMap map[uuid.UUID]string
@@ -31,9 +32,17 @@ type Manager struct {
 	Scheduler     scheduler.Scheduler
 }
 
-func New(workers []string, schedulerType string) *Manager {
-	taskDb := make(map[uuid.UUID]*task.Task)
-	eventDb := make(map[uuid.UUID]*task.TaskEvent)
+func New(workers []string, schedulerType string, dbType string) *Manager {
+	var taskDb storage.Storage
+	var eventDb storage.Storage
+	switch dbType {
+	case "", "memory":
+		taskDb = storage.NewInMemoryTaskStorage()
+		eventDb = storage.NewInMemoryTaskEventStorage()
+	default:
+		taskDb = storage.NewInMemoryTaskStorage()
+		eventDb = storage.NewInMemoryTaskEventStorage()
+	}
 	workerTaskMap := make(map[string][]uuid.UUID)
 	taskWorkerMap := make(map[uuid.UUID]string)
 	nodes := []*node.Node{}
