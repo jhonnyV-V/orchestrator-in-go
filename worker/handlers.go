@@ -51,14 +51,14 @@ func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 	//TODO: handle bad uuid
 	tId, _ := uuid.Parse(taskID)
 
-	taskToStop, ok := a.Worker.Db[tId]
-	if !ok {
+	taskToStop, err := a.Worker.Db.Get(tId)
+	if err != nil {
 		log.Printf("No task with id %v found\n", tId)
 		w.WriteHeader(404)
 		return
 	}
 
-	taskCopy := *taskToStop
+	taskCopy := *(taskToStop.(*task.Task))
 	taskCopy.State = task.COMPLETED
 	a.Worker.AddTask(taskCopy)
 	log.Printf("added task %v to stop container %v\n", taskCopy.ID, taskCopy.ContainerID)
