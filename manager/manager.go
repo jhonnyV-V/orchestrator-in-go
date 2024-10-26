@@ -34,14 +34,24 @@ type Manager struct {
 func New(workers []string, schedulerType string, dbType string) *Manager {
 	var taskDb storage.Storage
 	var eventDb storage.Storage
+	var err error
 	switch dbType {
 	case "", "memory":
 		taskDb = storage.NewInMemoryTaskStorage()
 		eventDb = storage.NewInMemoryTaskEventStorage()
+	case "persistent":
+		taskDb, err = storage.NewTaskStore("tasks.db", 0600, "tasks")
+		eventDb, err = storage.NewEventStore("events.db", 0600, "events")
 	default:
 		taskDb = storage.NewInMemoryTaskStorage()
 		eventDb = storage.NewInMemoryTaskEventStorage()
 	}
+
+	if err != nil {
+		log.Printf("failed to create task storage %v\n", err)
+		log.Printf("failed to create event storage %v\n", err)
+	}
+
 	workerTaskMap := make(map[string][]uuid.UUID)
 	taskWorkerMap := make(map[uuid.UUID]string)
 	nodes := []*node.Node{}
@@ -219,7 +229,7 @@ func (m *Manager) updateTasks() {
 
 			taskPersisted, ok := result.(*task.Task)
 			if !ok {
-				log.Printf("cannot convert result %v to *task.Task type %s\n", result)
+				log.Printf("cannot convert result %v to *task.Task type\n", result)
 				continue
 			}
 

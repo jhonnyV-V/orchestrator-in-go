@@ -5,10 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/golang-collections/collections/queue"
-	"github.com/google/uuid"
 	"github.com/jhonnyV-V/orch-in-go/manager"
-	"github.com/jhonnyV-V/orch-in-go/task"
 	"github.com/jhonnyV-V/orch-in-go/worker"
 )
 
@@ -35,23 +32,15 @@ func main() {
 
 	fmt.Println("Starting Cube worker")
 
-	w1 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-	}
-	wapi1 := worker.Api{Address: whost, Port: wport, Worker: &w1}
-
-	w2 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-	}
-	wapi2 := worker.Api{Address: whost, Port: wport + 1, Worker: &w2}
-
-	w3 := worker.Worker{
-		Queue: *queue.New(),
-		Db:    make(map[uuid.UUID]*task.Task),
-	}
-	wapi3 := worker.Api{Address: whost, Port: wport + 2, Worker: &w3}
+	//w1 := worker.New("woker-1", "memory")
+	w1 := worker.New("woker-1", "persistent")
+	wapi1 := worker.Api{Address: whost, Port: wport, Worker: w1}
+	//w2 := worker.New("woker-2", "memory")
+	w2 := worker.New("woker-2", "persistent")
+	wapi2 := worker.Api{Address: whost, Port: wport + 1, Worker: w2}
+	//w3 := worker.New("woker-3", "memory")
+	w3 := worker.New("woker-3", "persistent")
+	wapi3 := worker.Api{Address: whost, Port: wport + 2, Worker: w3}
 
 	go w1.RunTasks()
 	go w1.UpdateTasks()
@@ -75,8 +64,9 @@ func main() {
 		fmt.Sprintf("%s:%d", whost, wport+1),
 		fmt.Sprintf("%s:%d", whost, wport+2),
 	}
-	// m := manager.New(workers, "roundrobin")
-	m := manager.New(workers, "epvm")
+	//m := manager.New(workers, "roundrobin", "memory")
+	//m := manager.New(workers, "epvm", "memory")
+	m := manager.New(workers, "epvm", "persistent")
 	mapi := manager.Api{Address: mhost, Port: mport, Manager: m}
 
 	go m.ProcessTasks()

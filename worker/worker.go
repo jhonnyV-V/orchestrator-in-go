@@ -27,12 +27,21 @@ func New(name, dbType string) *Worker {
 	}
 
 	var s storage.Storage
+	var err error
 	switch dbType {
 	case "memory", "":
 		s = storage.NewInMemoryTaskStorage()
 
+	case "persistent":
+		filename := fmt.Sprintf("%s_tasks.db", name)
+		s, err = storage.NewTaskStore(filename, 0600, "tasks")
+
 	default:
 		s = storage.NewInMemoryTaskStorage()
+	}
+
+	if err != nil {
+		log.Printf("unable to create new task store %v\n", err)
 	}
 
 	w.Db = s
@@ -89,22 +98,23 @@ func (w *Worker) runTask() task.DockerResult {
 	}
 
 	taskQueued := t.(task.Task)
-	taskResult, err := w.Db.Get(taskQueued.ID)
-	if err != nil {
-		msg := fmt.Errorf("error getting task %v from database: %v", taskQueued.ID, err)
-		log.Printf("%s\n", msg.Error())
-		return task.DockerResult{Error: msg}
-	}
-	taskPersisted := taskResult.(*task.Task)
+	taskResult, _ := w.Db.Get(taskQueued.ID)
+	// if err != nil {
+	// 	msg := fmt.Errorf("error getting task %v from database: %v", taskQueued.ID, err)
+	// 	log.Printf("%s\n", msg.Error())
+	// 	return task.DockerResult{Error: msg}
+	// }
+	taskPersisted, ok := taskResult.(*task.Task)
 
-	if taskPersisted == nil {
+	if !ok {
 		taskPersisted = &taskQueued
-		err = w.Db.Put(taskQueued.ID, taskPersisted)
+		err := w.Db.Put(taskQueued.ID, taskPersisted)
 		if err != nil {
 			msg := fmt.Errorf("error storing task %v: %v", taskQueued.ID, err)
 			log.Printf("%s\n", msg.Error())
 			return task.DockerResult{Error: msg}
 		}
+	} else {
 	}
 
 	var result task.DockerResult
@@ -186,7 +196,7 @@ func (w *Worker) updateTasks() {
 		log.Printf("error getting list of task %v\n", err)
 		return
 	}
-	for id, t := range tasks.([]*task.Task) {
+	for _, t := range tasks.([]*task.Task) {
 		if t.State == task.RUNNING {
 			resp := w.InspectTask(*t)
 			if resp.Error != nil {
@@ -194,13 +204,13 @@ func (w *Worker) updateTasks() {
 			}
 
 			if resp.Container == nil {
-				log.Printf("No container for running task %s\n", id)
+				log.Printf("No container for running task %s\n", t.ID)
 				t.State = task.FAILED
 				w.Db.Put(t.ID, t)
 			}
 
 			if resp.Container.State.Status == "exited" {
-				log.Printf("Container for task %s in non-running state %s\n", id, resp.Container.State.Status)
+				log.Printf("Container for task %s in non-running state %s\n", t.ID, resp.Container.State.Status)
 				t.State = task.FAILED
 				w.Db.Put(t.ID, t)
 			}
