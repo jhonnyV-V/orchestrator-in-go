@@ -74,3 +74,9 @@ func (a *Api) StopTaskHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("added task %v to stop container %v\n", taskCopy.ID, taskCopy.ContainerID)
 	w.WriteHeader(204)
 }
+
+func (a *Api) GetNodesHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(a.Manager.WorkerNodes)
+}
